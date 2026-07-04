@@ -1,58 +1,182 @@
 import { useEffect, useRef, useState } from 'react'
 import Icon from './Icon.jsx'
-import { renderMarkdown } from '../lib/markdown.js'
+import { EditorState, RangeSetBuilder, Annotation } from '@codemirror/state'
+import { EditorView, keymap, placeholder, Decoration, ViewPlugin } from '@codemirror/view'
+import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { syntaxTree, syntaxHighlighting, HighlightStyle } from '@codemirror/language'
+import { tags as t } from '@lezer/highlight'
 
-// Markdown note: renders formatted when idle, becomes a textarea (with a small
-// formatting toolbar) when you click into it. Stores raw markdown via onChange.
-export default function NoteEditor({ note, onChange }) {
-  const [editing, setEditing] = useState(false)
-  const ref = useRef(null)
-  const pendingSel = useRef(null)
+// Markdown note with a live-preview editor: bold reads bold, links read as
+// links (⌘/Ctrl-click to open), headings scale — the raw **/[]() markers only
+// reappear on the construct your cursor is inside, so it stays editable.
+// Markdown is still the stored source of truth (portable, sync-friendly);
+// CodeMirror just renders it in place.
 
-  const hasNote = note.trim().length > 0
+// Styles applied to rendered constructs, keyed off the markdown parser's tags.
+const highlight = HighlightStyle.define([
+  { tag: t.strong, fontWeight: '680', color: 'var(--ink)' },
+  { tag: t.emphasis, fontStyle: 'italic' },
+  { tag: t.strikethrough, textDecoration: 'line-through', color: 'var(--muted)' },
+  { tag: t.heading1, fontSize: '1.15rem', fontWeight: '680', color: 'var(--ink)' },
+  { tag: t.heading2, fontSize: '1.05rem', fontWeight: '680', color: 'var(--ink)' },
+  { tag: t.heading3, fontSize: '0.98rem', fontWeight: '680', color: 'var(--ink)' },
+  { tag: [t.heading4, t.heading5, t.heading6], fontWeight: '680', color: 'var(--ink)' },
+  { tag: t.link, color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: '2px' },
+  { tag: t.url, color: 'var(--muted)' },
+  { tag: t.monospace, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.82rem' },
+  { tag: t.quote, color: 'var(--muted)', fontStyle: 'italic' },
+  { tag: t.list, color: 'var(--muted)' }
+])
 
-  // grow to fit + restore any pending selection after a toolbar edit
-  useEffect(() => {
-    if (!editing || !ref.current) return
-    const el = ref.current
-    el.style.height = 'auto'
-    el.style.height = el.scrollHeight + 'px'
-    if (pendingSel.current) {
-      el.focus()
-      el.setSelectionRange(pendingSel.current[0], pendingSel.current[1])
-      pendingSel.current = null
+// Syntax marks we collapse when the cursor isn't inside their construct.
+const MARKS = new Set([
+  'EmphasisMark', 'CodeMark', 'StrikethroughMark', 'LinkMark', 'URL', 'HeaderMark', 'QuoteMark'
+])
+const hidden = Decoration.replace({})
+
+// Hide markdown punctuation unless a selection sits inside the enclosing
+// construct (Emphasis/Link/heading line…), which reveals it for editing.
+const livePreview = ViewPlugin.fromClass(
+  class {
+    constructor(view) { this.decorations = this.build(view) }
+    update(u) {
+      if (u.docChanged || u.selectionSet || u.viewportChanged) this.decorations = this.build(u.view)
     }
-  }, [editing, note])
+    build(view) {
+      const b = new RangeSetBuilder()
+      const sel = view.state.selection
+      const revealed = (from, to) => sel.ranges.some((r) => r.from <= to && r.to >= from)
+      for (const { from, to } of view.visibleRanges) {
+        syntaxTree(view.state).iterate({
+          from, to,
+          enter: (node) => {
+            if (!MARKS.has(node.name)) return
+            const parent = node.node.parent
+            const cf = parent ? parent.from : node.from
+            const ct = parent ? parent.to : node.to
+            if (revealed(cf, ct)) return
+            // swallow the space after a heading's "#" so it doesn't leave a gap
+            let end = node.to
+            if (node.name === 'HeaderMark' && view.state.doc.sliceString(node.to, node.to + 1) === ' ') end = node.to + 1
+            if (node.from < end) b.add(node.from, end, hidden)
+          }
+        })
+      }
+      return b.finish()
+    }
+  },
+  { decorations: (v) => v.decorations }
+)
 
-  const surround = (before, after) => {
-    const el = ref.current
-    const { selectionStart: s, selectionEnd: e } = el
-    const sel = note.slice(s, e)
-    onChange(note.slice(0, s) + before + sel + after + note.slice(e))
-    pendingSel.current = [s + before.length, e + before.length]
+const theme = EditorView.theme({
+  '&': { color: 'var(--ink)', backgroundColor: 'transparent', fontSize: '0.9rem' },
+  '&.cm-focused': { outline: 'none' },
+  '.cm-scroller': { fontFamily: 'inherit', lineHeight: '1.6' }, // override CM's default monospace
+  '.cm-content': { padding: '2px 0', caretColor: 'var(--accent)' },
+  '.cm-line': { padding: '0' },
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)' },
+  '.cm-placeholder': { color: 'var(--faint)' }
+})
+
+// ⌘/Ctrl-click a link's text to open it (http(s)/mailto only, new tab).
+const openLinks = EditorView.domEventHandlers({
+  mousedown: (e, view) => {
+    if (!(e.metaKey || e.ctrlKey)) return false
+    const pos = view.posAtCoords({ x: e.clientX, y: e.clientY })
+    if (pos == null) return false
+    let node = syntaxTree(view.state).resolveInner(pos, 1)
+    while (node && node.name !== 'Link') node = node.parent
+    const urlNode = node && node.getChild('URL')
+    if (!urlNode) return false
+    const url = view.state.doc.sliceString(urlNode.from, urlNode.to)
+    if (/^(https?:|mailto:)/i.test(url)) {
+      window.open(url, '_blank', 'noopener')
+      e.preventDefault()
+      return true
+    }
+    return false
+  }
+})
+
+const External = Annotation.define() // marks doc updates that came from props, not the user
+
+export default function NoteEditor({ note, onChange }) {
+  const box = useRef(null)
+  const view = useRef(null)
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+  const [focused, setFocused] = useState(false)
+
+  // create the editor once
+  useEffect(() => {
+    const v = new EditorView({
+      parent: box.current,
+      state: EditorState.create({
+        doc: note,
+        extensions: [
+          history(),
+          keymap.of([...defaultKeymap, ...historyKeymap]),
+          markdown({ base: markdownLanguage }),
+          syntaxHighlighting(highlight),
+          livePreview,
+          EditorView.lineWrapping,
+          placeholder('Write a note…  **bold**, *italic*, - lists, [links](url)'),
+          theme,
+          openLinks,
+          EditorView.updateListener.of((u) => {
+            if (u.focusChanged) setFocused(u.view.hasFocus)
+            if (u.docChanged && !u.transactions.some((tr) => tr.annotation(External))) {
+              onChangeRef.current(u.state.doc.toString())
+            }
+          })
+        ]
+      })
+    })
+    view.current = v
+    return () => v.destroy()
+  }, [])
+
+  // sync external note changes (e.g. switching tasks) into the editor
+  useEffect(() => {
+    const v = view.current
+    if (!v) return
+    const current = v.state.doc.toString()
+    if (note !== current) {
+      v.dispatch({ changes: { from: 0, to: current.length, insert: note }, annotation: External.of(true) })
+    }
+  }, [note])
+
+  const wrap = (before, after) => {
+    const v = view.current
+    const { from, to } = v.state.selection.main
+    v.dispatch({
+      changes: [{ from, insert: before }, { from: to, insert: after }],
+      selection: { anchor: from + before.length, head: to + before.length }
+    })
+    v.focus()
   }
 
   const bulletList = () => {
-    const el = ref.current
-    const { selectionStart: s, selectionEnd: e } = el
-    const lineStart = note.lastIndexOf('\n', s - 1) + 1
-    const block = note.slice(lineStart, e) || ''
-    const prefixed = block
-      .split('\n')
-      .map((l) => (l.length ? '- ' + l : '- '))
-      .join('\n')
-    onChange(note.slice(0, lineStart) + prefixed + note.slice(e))
-    pendingSel.current = [lineStart, lineStart + prefixed.length]
+    const v = view.current
+    const { from, to } = v.state.selection.main
+    const doc = v.state.doc
+    const changes = []
+    for (let n = doc.lineAt(from).number; n <= doc.lineAt(to).number; n++) {
+      changes.push({ from: doc.line(n).from, insert: '- ' })
+    }
+    v.dispatch({ changes })
+    v.focus()
   }
 
   const insertLink = () => {
-    const el = ref.current
-    const { selectionStart: s, selectionEnd: e } = el
-    const label = note.slice(s, e) || 'text'
+    const v = view.current
+    const { from, to } = v.state.selection.main
+    const label = v.state.doc.sliceString(from, to) || 'text'
     const insert = `[${label}](url)`
-    onChange(note.slice(0, s) + insert + note.slice(e))
-    const urlStart = s + label.length + 3 // after "[label]("
-    pendingSel.current = [urlStart, urlStart + 3]
+    const urlStart = from + label.length + 3 // after "[label]("
+    v.dispatch({ changes: { from, to, insert }, selection: { anchor: urlStart, head: urlStart + 3 } })
+    v.focus()
   }
 
   const ToolBtn = ({ onClick, label, children }) => (
@@ -60,7 +184,7 @@ export default function NoteEditor({ note, onChange }) {
       type="button"
       title={label}
       aria-label={label}
-      onMouseDown={(e) => e.preventDefault()} // keep textarea focus/selection
+      onMouseDown={(e) => e.preventDefault()} // keep editor focus/selection
       onClick={onClick}
       className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:text-ink"
     >
@@ -68,30 +192,17 @@ export default function NoteEditor({ note, onChange }) {
     </button>
   )
 
-  if (!editing) {
-    return hasNote ? (
-      <div
-        onClick={() => setEditing(true)}
-        className="note-content cursor-text rounded-lg p-1 -m-1 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]"
-        dangerouslySetInnerHTML={{ __html: renderMarkdown(note) }}
-      />
-    ) : (
-      <button
-        onClick={() => setEditing(true)}
-        className="w-full rounded-lg py-2 text-left text-[0.9rem] text-faint hover:text-muted"
-      >
-        Add a note… <span className="text-[0.78rem]">(markdown supported)</span>
-      </button>
-    )
-  }
-
   return (
-    <div>
-      <div className="mb-1.5 flex items-center gap-0.5 border-b border-line-soft pb-1.5">
-        <ToolBtn onClick={() => surround('**', '**')} label="Bold">
+    <div className="rounded-lg p-1 -m-1 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]">
+      <div
+        className={`mb-1.5 flex items-center gap-0.5 overflow-hidden border-b border-line-soft transition-all ${
+          focused ? 'max-h-9 pb-1.5 opacity-100' : 'max-h-0 border-transparent opacity-0'
+        }`}
+      >
+        <ToolBtn onClick={() => wrap('**', '**')} label="Bold">
           <span className="text-[0.9rem] font-bold">B</span>
         </ToolBtn>
-        <ToolBtn onClick={() => surround('*', '*')} label="Italic">
+        <ToolBtn onClick={() => wrap('*', '*')} label="Italic">
           <span className="text-[0.9rem] italic font-serif">I</span>
         </ToolBtn>
         <ToolBtn onClick={bulletList} label="Bullet list">
@@ -101,24 +212,7 @@ export default function NoteEditor({ note, onChange }) {
           <Icon name="link" size={15} />
         </ToolBtn>
       </div>
-      <textarea
-        ref={ref}
-        autoFocus
-        value={note}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => setEditing(false)}
-        placeholder="Write a note… **bold**, *italic*, - lists, [links](url)"
-        rows={3}
-        className="w-full resize-none rounded-lg bg-transparent font-[ui-monospace,SFMono-Regular,Menlo,monospace] text-[0.86rem] leading-[1.55] text-ink outline-none placeholder:text-faint"
-      />
-      <div className="mt-1 text-right">
-        <button
-          onClick={() => setEditing(false)}
-          className="text-[0.75rem] font-medium text-accent hover:underline"
-        >
-          Done
-        </button>
-      </div>
+      <div ref={box} className="cursor-text" />
     </div>
   )
 }

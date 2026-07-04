@@ -62,4 +62,14 @@ export function applyPalette(id, isDark) {
   const v = getVariant(id, isDark)
   const s = document.documentElement.style
   for (const [key, cssVar] of Object.entries(TOKENS)) s.setProperty(cssVar, v[key])
+  // Tint the browser/OS chrome (mobile address bar, PWA title bar) to match the
+  // app's base surface, so it blends seamlessly. The static manifest theme_color
+  // is only a fallback / splash colour; this live-updates as palette or theme flips.
+  let meta = document.querySelector('meta[name="theme-color"]')
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.name = 'theme-color'
+    document.head.appendChild(meta)
+  }
+  meta.setAttribute('content', v.ground)
 }

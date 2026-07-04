@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import Icon from './Icon.jsx'
-import NoteEditor from './NoteEditor.jsx'
 import Subtasks from './Subtasks.jsx'
 import { useTaskActions } from '../store/StoreProvider.jsx'
+
+// NoteEditor pulls in CodeMirror — a big dependency for a panel that only opens
+// on demand, so load it lazily to keep the initial app bundle light.
+const NoteEditor = lazy(() => import('./NoteEditor.jsx'))
 
 // Detail panel for a single task. Right-hand column on desktop, full-screen
 // sheet on mobile. Holds the richer editing: title, completion, markdown note,
@@ -106,7 +109,9 @@ export default function TaskDetail({ task, onClose }) {
           <div className="mb-2 text-[0.66rem] font-semibold uppercase tracking-[0.1em] text-faint">
             Note
           </div>
-          <NoteEditor note={task.note} onChange={(v) => setNote(task.id, v)} />
+          <Suspense fallback={<div className="py-2 text-[0.9rem] text-faint">Loading editor…</div>}>
+            <NoteEditor note={task.note} onChange={(v) => setNote(task.id, v)} />
+          </Suspense>
         </div>
       </div>
 
