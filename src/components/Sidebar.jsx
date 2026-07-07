@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import Icon from './Icon.jsx'
-import SettingsModal from './SettingsModal.jsx'
 import { useLists } from '../store/StoreProvider.jsx'
 import { useSettings } from '../settings/SettingsProvider.jsx'
 
@@ -20,11 +19,10 @@ function DroppableRow({ listId, children }) {
   )
 }
 
-export default function Sidebar() {
+export default function Sidebar({ settingsActive, onOpenSettings }) {
   const { lists, activeListId, openCounts, selectList, addList, renameList, deleteList } = useLists()
   const { isDark, toggleTheme } = useSettings()
 
-  const [showSettings, setShowSettings] = useState(false)
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
   const [editingId, setEditingId] = useState(null)
@@ -46,7 +44,7 @@ export default function Sidebar() {
     <aside className="flex w-60 flex-none flex-col border-r border-line bg-sidebar">
       {/* brand */}
       <div className="flex items-center gap-2.5 px-[18px] pb-3.5 pt-[18px]">
-        <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-lg bg-accent text-accent-ink shadow-[0_4px_10px_-3px_var(--accent)]">
+        <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-lg bg-accent text-accent-ink">
           <Icon name="check" size={15} strokeWidth={3.2} />
         </span>
         <span className="text-[1.06rem] font-bold tracking-[-0.02em]">
@@ -165,16 +163,18 @@ export default function Sidebar() {
           <Icon name={isDark ? 'sun' : 'moon'} size={15} />
         </button>
         <button
-          onClick={() => setShowSettings(true)}
+          onClick={onOpenSettings}
           title="Settings"
           aria-label="Open settings"
-          className="grid h-7 w-7 place-items-center rounded-md border border-line bg-window text-muted hover:border-faint hover:text-ink"
+          className={`grid h-7 w-7 place-items-center rounded-md border ${
+            settingsActive
+              ? 'border-accent bg-accent-soft text-accent'
+              : 'border-line bg-window text-muted hover:border-faint hover:text-ink'
+          }`}
         >
           <Icon name="gear" size={15} />
         </button>
       </div>
-
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </aside>
   )
 }

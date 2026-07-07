@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -14,6 +14,7 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import Sidebar from './components/Sidebar.jsx'
 import TaskList from './components/TaskList.jsx'
 import TaskDetail from './components/TaskDetail.jsx'
+import SettingsPage from './components/SettingsPage.jsx'
 import { useLists, useReady, useDragActions, useSelection } from './store/StoreProvider.jsx'
 
 // Prioritise the droppable directly under the pointer (so a narrow sidebar list
@@ -31,6 +32,10 @@ export default function App() {
   const { selectedTaskId, closeTask } = useSelection()
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null
   const [dragging, setDragging] = useState(null) // the task being dragged (for the overlay)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // Leave settings when the user navigates to a list.
+  useEffect(() => { setSettingsOpen(false) }, [activeListId])
 
   // Small activation distance so clicks/taps still work; touch needs a short
   // hold so scrolling isn't hijacked. This is what makes reorder work on mobile.
@@ -79,17 +84,23 @@ export default function App() {
       onDragCancel={() => setDragging(null)}
     >
       <div className="flex h-full bg-window text-ink">
-        <Sidebar />
-        <main className="flex min-w-0 flex-1">
-          {ready && activeList ? (
-            <TaskList list={activeList} />
-          ) : (
-            <div className="flex flex-1 items-center justify-center text-[0.85rem] text-muted">
-              {ready ? 'Select a list' : 'Loading…'}
-            </div>
-          )}
-        </main>
-        {selectedTask && <TaskDetail task={selectedTask} onClose={closeTask} />}
+        <Sidebar settingsActive={settingsOpen} onOpenSettings={() => setSettingsOpen(true)} />
+        {settingsOpen ? (
+          <SettingsPage onClose={() => setSettingsOpen(false)} />
+        ) : (
+          <>
+            <main className="flex min-w-0 flex-1">
+              {ready && activeList ? (
+                <TaskList list={activeList} />
+              ) : (
+                <div className="flex flex-1 items-center justify-center text-[0.85rem] text-muted">
+                  {ready ? 'Select a list' : 'Loading…'}
+                </div>
+              )}
+            </main>
+            {selectedTask && <TaskDetail task={selectedTask} onClose={closeTask} />}
+          </>
+        )}
       </div>
 
       <DragOverlay dropAnimation={null}>
