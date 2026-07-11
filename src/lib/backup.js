@@ -28,10 +28,20 @@ export async function exportData() {
 }
 
 export async function importData(file) {
-  const data = JSON.parse(await file.text())
-  if (data.format !== FORMAT || !Array.isArray(data.lists) || !Array.isArray(data.tasks)) {
+  let data
+  try {
+    data = JSON.parse(await file.text())
+  } catch {
+    throw new Error('That file isn’t valid JSON.')
+  }
+  if (data?.format !== FORMAT || !Array.isArray(data.lists) || !Array.isArray(data.tasks)) {
     throw new Error('That doesn’t look like a Noted List backup file.')
   }
-  await storage.importAll({ lists: data.lists, tasks: data.tasks })
-  return { lists: data.lists.length, tasks: data.tasks.length }
+  // Keep only well-formed records so a malformed file can't corrupt the store
+  // (a record missing its `id` keyPath would otherwise abort the whole import).
+  const lists = data.lists.filter((l) => l && typeof l.id === 'string' && typeof l.name === 'string')
+  const tasks = data.tasks.filter((t) => t && typeof t.id === 'string' && typeof t.listId === 'string')
+  if (!lists.length) throw new Error('That backup has no valid lists.')
+  await storage.importAll({ lists, tasks })
+  return { lists: lists.length, tasks: tasks.length }
 }

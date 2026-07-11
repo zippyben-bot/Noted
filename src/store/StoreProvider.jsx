@@ -178,9 +178,15 @@ export function StoreProvider({ children }) {
   // reorder open tasks within a list; `orderedIds` is the new top-to-bottom order
   const reorderTasks = useCallback(async (listId, orderedIds) => {
     const byId = new Map(tasks.map((t) => [t.id, t]))
-    const reordered = orderedIds.map((tid, i) => ({ ...byId.get(tid), order: i }))
+    // resolve ids to tasks, dropping any stale/unknown id so we never build a
+    // record without its `id` keyPath (which would throw on the IndexedDB put)
+    const reordered = orderedIds
+      .map((tid) => byId.get(tid))
+      .filter(Boolean)
+      .map((t, i) => ({ ...t, order: i }))
+    const movedIds = new Set(reordered.map((t) => t.id))
     setTasks((prev) => {
-      const untouched = prev.filter((t) => !orderedIds.includes(t.id))
+      const untouched = prev.filter((t) => !movedIds.has(t.id))
       return [...untouched, ...reordered]
     })
     await storage.reorderTasks(reordered)
