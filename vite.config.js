@@ -3,19 +3,15 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // Noted List — local-first checklist PWA.
-// Served in production under benford.co.nz/notedlist, so the production build
-// uses base '/notedlist/' and emits into dist/notedlist (URLs match physical
-// paths on Vercel). Dev stays at '/' so local testing is unaffected.
-export default defineConfig(({ command }) => ({
-  base: command === 'build' ? '/notedlist/' : '/',
-  build: { outDir: 'dist/notedlist', emptyOutDir: true },
+// Hosted on Cloudflare Pages at its own subdomain (notedlist.benford.co.nz),
+// so it serves from the root — base '/'. Security headers + SPA fallback live
+// in public/_headers and public/_redirects (Cloudflare Pages picks them up).
+export default defineConfig({
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'script', // external registerSW.js (no inline script → CSP-safe)
-      // Make the dev server installable too, so the Dock app can point at it
-      // and pick up live changes (hot-reload) instead of a frozen build.
       devOptions: { enabled: true, type: 'module' },
       includeAssets: ['favicon.svg', 'icon.svg'],
       manifest: {
@@ -32,4 +28,4 @@ export default defineConfig(({ command }) => ({
       }
     })
   ]
-}))
+})
