@@ -5,3 +5,6 @@ dev-dist
 *.local
 .DS_Store
 .vite
+
+# landing page lives in a separate (private) repo, not here
+/landing
