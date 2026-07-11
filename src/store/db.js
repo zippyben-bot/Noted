@@ -9,7 +9,7 @@ import { openDB } from 'idb'
 // and nothing upstream has to change. Keep this boundary strict.
 // ---------------------------------------------------------------------------
 
-const DB_NAME = 'blunderlist'
+const DB_NAME = 'noted-list'
 const DB_VERSION = 1
 
 const dbPromise = openDB(DB_NAME, DB_VERSION, {

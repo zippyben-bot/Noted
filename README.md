@@ -1,9 +1,9 @@
-# blunderlist
+# Noted List
 
-A lightweight, local-first checklist app inspired by Wunderlist. Add tasks fast,
-check them off, organise them into lists, and keep the detail (notes, subtasks)
-one click deep. Runs entirely in the browser — data lives in IndexedDB on your
-device — and installs as a standalone PWA.
+A lightweight, local-first checklist app — a calm home for the small stuff.
+Add tasks fast, check them off, organise them into lists, and keep the detail
+(notes, subtasks) one click deep. Runs entirely in the browser — data lives in
+IndexedDB on your device — and installs as a standalone PWA.
 
 ## Features
 
@@ -12,11 +12,12 @@ device — and installs as a standalone PWA.
 - **Detail panel** — per task: markdown note, a checklist of subtasks, move-to-list.
 - **Drag & drop** — reorder within a list or drag onto another list (touch + keyboard supported).
 - **Palettes** — six full light/dark themes; System / Light / Dark.
+- **Installable** — add it to your device; works offline (PWA).
 - **Local-first** — everything saved on-device; one-click JSON export / import for backup.
 
 ## Stack
 
-React + Vite + Tailwind · IndexedDB (via `idb`) behind a storage adapter · `dnd-kit` · `marked` · vite-plugin-pwa (`display: standalone`).
+React + Vite + Tailwind · IndexedDB (via `idb`) behind a storage adapter · `dnd-kit` · CodeMirror · vite-plugin-pwa (`display: standalone`).
 
 ## Develop
 

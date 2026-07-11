@@ -6,8 +6,8 @@ import { applyPalette, DEFAULT_PALETTE } from '../lib/palettes.js'
 // The palette is re-applied when the effective theme flips, since each palette
 // has distinct light/dark token sets.
 
-const THEME_KEY = 'blunderlist:theme' // 'light' | 'dark' | absent(=system)
-const PALETTE_KEY = 'blunderlist:palette'
+const THEME_KEY = 'noted-list:theme' // 'light' | 'dark' | absent(=system)
+const PALETTE_KEY = 'noted-list:palette'
 
 const SettingsContext = createContext(null)
 

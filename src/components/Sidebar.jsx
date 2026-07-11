@@ -51,7 +51,7 @@ export default function Sidebar({ settingsActive, onOpenSettings }) {
           <Icon name="check" size={15} strokeWidth={3.2} />
         </span>
         <span className="text-[1.06rem] font-bold tracking-[-0.02em]">
-          blunder<span className="text-accent">list</span>
+          Noted <span className="text-accent">List</span>
         </span>
       </div>
 

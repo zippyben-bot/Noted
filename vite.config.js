@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// blunderlist — local-first checklist PWA.
+// Noted List — local-first checklist PWA.
 // display: standalone → installs to the Dock and opens in its own chrome-free window.
 export default defineConfig({
   plugins: [
@@ -14,8 +14,8 @@ export default defineConfig({
       devOptions: { enabled: true, type: 'module' },
       includeAssets: ['favicon.svg', 'icon.svg'],
       manifest: {
-        name: 'blunderlist',
-        short_name: 'blunderlist',
+        name: 'Noted List',
+        short_name: 'Noted List',
         description: 'A lightweight, local-first checklist app.',
         display: 'standalone',
         background_color: '#0d0f1c',

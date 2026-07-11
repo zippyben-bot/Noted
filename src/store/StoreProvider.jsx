@@ -13,7 +13,7 @@ import { storage } from './db.js'
 
 const StoreContext = createContext(null)
 
-const ACTIVE_KEY = 'blunderlist:activeListId'
+const ACTIVE_KEY = 'noted-list:activeListId'
 
 // Module-scoped guard so React StrictMode's double-invoked mount effect can't
 // hydrate (and seed a default list) twice in development.
@@ -98,7 +98,7 @@ export function StoreProvider({ children }) {
   const addTask = useCallback(async (listId, title) => {
     const clean = title.trim()
     if (!clean) return
-    // new tasks append to the bottom of the list (Wunderlist-style)
+    // new tasks append to the bottom of the list
     const order = orderSeq.current++
     const task = await storage.createTask({ listId, title: clean, order })
     setTasks((prev) => [...prev, task])

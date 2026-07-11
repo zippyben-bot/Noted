@@ -153,7 +153,7 @@ export default function SettingsPage({ onClose }) {
           {status && <div className="mt-2 text-[0.75rem] text-muted">{status}</div>}
 
           <div className="mt-8 border-t border-line-soft pt-3 text-[0.72rem] text-faint">
-            blunderlist · saved on this device
+            Noted List · saved on this device
           </div>
         </div>
       </div>
