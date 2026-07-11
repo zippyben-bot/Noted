@@ -3,6 +3,7 @@ import { useDroppable } from '@dnd-kit/core'
 import Icon from './Icon.jsx'
 import { useLists } from '../store/StoreProvider.jsx'
 import { useSettings } from '../settings/SettingsProvider.jsx'
+import { useInstallPrompt } from '../lib/useInstallPrompt.js'
 
 const dotVar = (color) => `var(--dot-${color})`
 
@@ -22,6 +23,8 @@ function DroppableRow({ listId, children }) {
 export default function Sidebar({ settingsActive, onOpenSettings }) {
   const { lists, activeListId, openCounts, selectList, addList, renameList, deleteList } = useLists()
   const { isDark, toggleTheme } = useSettings()
+  const { canInstall, canPrompt, isIOS, promptInstall } = useInstallPrompt()
+  const [iosHint, setIosHint] = useState(false)
 
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
@@ -146,6 +149,24 @@ export default function Sidebar({ settingsActive, onOpenSettings }) {
           <Icon name="plus" size={13} strokeWidth={2.4} />
           New list
         </button>
+      )}
+
+      {/* install (PWA) — only shown when the app can actually be installed */}
+      {canInstall && (
+        <div className="mx-2.5 mt-1.5">
+          <button
+            onClick={() => (canPrompt ? promptInstall() : setIosHint((v) => !v))}
+            className="flex w-full items-center gap-2.5 rounded-lg border border-accent bg-accent-soft px-2.5 py-2 text-[0.85rem] font-medium text-accent hover:bg-[color-mix(in_srgb,var(--accent)_16%,transparent)]"
+          >
+            <Icon name="download" size={15} strokeWidth={2.2} />
+            Install app
+          </button>
+          {isIOS && iosHint && (
+            <p className="mt-1.5 px-1 text-[0.75rem] leading-snug text-muted">
+              Tap the Share button, then “Add to Home Screen”.
+            </p>
+          )}
+        </div>
       )}
 
       {/* footer */}
