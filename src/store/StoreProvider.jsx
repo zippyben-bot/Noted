@@ -13,7 +13,7 @@ import { storage } from './db.js'
 
 const StoreContext = createContext(null)
 
-const ACTIVE_KEY = 'noted-list:activeListId'
+const ACTIVE_KEY = 'noted:activeListId'
 
 // Module-scoped guard so React StrictMode's double-invoked mount effect can't
 // hydrate (and seed a default list) twice in development.

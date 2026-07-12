@@ -1,4 +1,4 @@
-# Noted List
+# Noted
 
 A lightweight, local-first checklist app — a calm home for the small stuff.
 Add tasks fast, check them off, organise them into lists, and keep the detail

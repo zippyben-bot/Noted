@@ -2,8 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Noted List — local-first checklist PWA.
-// Hosted on Cloudflare Pages at its own subdomain (notedlist.benford.co.nz),
+// Noted — local-first checklist PWA.
+// Hosted on Cloudflare Pages at its own subdomain (noted.benford.co.nz),
 // so it serves from the root — base '/'. Security headers + SPA fallback live
 // in public/_headers and public/_redirects (Cloudflare Pages picks them up).
 export default defineConfig({
@@ -15,8 +15,8 @@ export default defineConfig({
       devOptions: { enabled: true, type: 'module' },
       includeAssets: ['favicon.svg', 'icon.svg'],
       manifest: {
-        name: 'Noted List',
-        short_name: 'Noted List',
+        name: 'Noted',
+        short_name: 'Noted',
         description: 'A lightweight, local-first checklist app.',
         display: 'standalone',
         background_color: '#0d0f1c',

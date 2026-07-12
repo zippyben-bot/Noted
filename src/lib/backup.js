@@ -4,7 +4,7 @@ import { storage } from '../store/db.js'
 // browser's IndexedDB, so this is the escape hatch: download a copy, or restore
 // one, independent of the browser and (eventually) of cloud sync.
 
-const FORMAT = 'noted-list-backup'
+const FORMAT = 'noted-backup'
 
 export async function exportData() {
   const { lists, tasks } = await storage.exportAll()
@@ -19,7 +19,7 @@ export async function exportData() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `noted-list-backup-${new Date().toISOString().slice(0, 10)}.json`
+  a.download = `noted-backup-${new Date().toISOString().slice(0, 10)}.json`
   document.body.appendChild(a)
   a.click()
   a.remove()
@@ -35,7 +35,7 @@ export async function importData(file) {
     throw new Error('That file isn’t valid JSON.')
   }
   if (data?.format !== FORMAT || !Array.isArray(data.lists) || !Array.isArray(data.tasks)) {
-    throw new Error('That doesn’t look like a Noted List backup file.')
+    throw new Error('That doesn’t look like a Noted backup file.')
   }
   // Keep only well-formed records so a malformed file can't corrupt the store
   // (a record missing its `id` keyPath would otherwise abort the whole import).

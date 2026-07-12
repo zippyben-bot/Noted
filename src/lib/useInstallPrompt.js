@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-// Surfaces whether Noted List can be installed as an app, and how.
+// Surfaces whether Noted can be installed as an app, and how.
 // - Chromium fires `beforeinstallprompt`; we stash it and trigger it on demand.
 // - iOS Safari has no such event — installing is manual (Share → Add to Home
 //   Screen), so we detect iOS and signal that the UI should show instructions.
